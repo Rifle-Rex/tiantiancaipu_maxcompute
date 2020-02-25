@@ -1,10 +1,10 @@
 package reducers;
 
-import java.io.IOException;
-import java.util.Iterator;
-
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.mapred.ReducerBase;
+
+import java.io.IOException;
+import java.util.Iterator;
 
 public class Conversation extends ReducerBase {
 

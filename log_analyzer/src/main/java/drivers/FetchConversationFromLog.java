@@ -8,7 +8,6 @@ import com.aliyun.odps.mapred.conf.JobConf;
 import com.aliyun.odps.mapred.utils.InputUtils;
 import com.aliyun.odps.mapred.utils.OutputUtils;
 import com.aliyun.odps.mapred.utils.SchemaUtils;
-
 import mappers.Log;
 import reducers.Conversation;
 

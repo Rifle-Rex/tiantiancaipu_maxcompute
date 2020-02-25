@@ -1,9 +1,9 @@
 package mappers;
 
-import java.io.IOException;
-
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.mapred.MapperBase;
+
+import java.io.IOException;
 
 public class Log extends MapperBase {
 

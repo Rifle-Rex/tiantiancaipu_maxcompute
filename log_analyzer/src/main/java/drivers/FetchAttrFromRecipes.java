@@ -9,22 +9,12 @@ import com.aliyun.odps.mapred.RunningJob;
 import com.aliyun.odps.mapred.conf.JobConf;
 import com.aliyun.odps.mapred.utils.InputUtils;
 import com.aliyun.odps.mapred.utils.OutputUtils;
-import com.aliyun.odps.mapred.utils.SchemaUtils;
+import com.google.gson.*;
 
 import java.io.IOException;
-import java.util.*;
-import java.util.Map.Entry;
 import java.sql.*;
-
-import com.google.common.collect.Iterators;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonSyntaxException;
+import java.util.Map.Entry;
+import java.util.*;
 
 
 public class FetchAttrFromRecipes {
@@ -40,15 +30,16 @@ public class FetchAttrFromRecipes {
         String pt = args[1];
         String attrJson = "";
         try {
+
             Class.forName("com.mysql.jdbc.Driver");
-            String url = "jdbc:mysql://127.0.0.1:3306/tiantiancaipu?characterEncoding=utf-8";
+            String url = "jdbc:mysql://192.168.1.169:3306/tiantiancaipu?characterEncoding=utf-8";
             String user = "root";
             String password = "123456";
             Connection conn = DriverManager.getConnection(url, user, password);
 
             // 获取文章的字段描述
             StringLengthComparator stringLengthComparator = new StringLengthComparator();
-            PreparedStatement preStatement = conn.prepareStatement("select * from sp_rp_arc_type where typename = ?");
+            PreparedStatement preStatement = conn.prepareStatement("select * from s_arc_type where typename = ?");
             Statement statement = conn.createStatement();
             preStatement.setString(1, articleType);
             ResultSet rs = preStatement.executeQuery();
@@ -87,7 +78,7 @@ public class FetchAttrFromRecipes {
                 String type = (String) es.get("type");
                 ArrayList<String> values = new ArrayList<String>();
                 if(type.equals("select")){
-                    rs = statement.executeQuery(String.format("select * from sp_rp_attr where type = 0 and channel = 0 and name = '%s'", key));
+                    rs = statement.executeQuery(String.format("select * from s_attr where type = 0 and channel = 0 and name = '%s'", key));
                     Integer index_id = 0;
                     while (rs.next()){
                         values = new ArrayList<String>(Arrays.asList(rs.getString("value").split(",")));
@@ -100,7 +91,7 @@ public class FetchAttrFromRecipes {
                     rs.close();
                     // JsonElement synonyms = new JsonObject();
                     HashMap<String, ArrayList> synonyms = new HashMap<>();
-                    rs = statement.executeQuery(String.format("select * from sp_rp_attr_synonyms where type = 'attr' and index_id = %d", index_id));
+                    rs = statement.executeQuery(String.format("select * from s_attr_synonyms where type = 'attr' and index_id = %d", index_id));
                     while (rs.next()){
                         String attrName = rs.getString("attr_name");
                         if (values.contains(attrName)) {
@@ -122,7 +113,7 @@ public class FetchAttrFromRecipes {
                 }
                 else if(type.equals("enum")){
                     // 获取对用枚举的同义词记录
-                    rs = statement.executeQuery(String.format("select * from sp_rp_attr_synonyms where type ='enum' and index_id = (select id from sp_rp_enum_index where egroup = '%s')", key));
+                    rs = statement.executeQuery(String.format("select * from s_attr_synonyms where type ='enum' and index_id = (select id from s_enum_index where egroup = '%s')", key));
                     HashMap<String, ArrayList> synonyms = new HashMap<>();
                     while(rs.next()){
                         String attrName = rs.getString("attr_name");
@@ -134,7 +125,7 @@ public class FetchAttrFromRecipes {
                     }
                     // 获取对应枚举值
                     ArrayList<HashMap<String, Object>> attrEnum = new ArrayList<>();
-                    rs = statement.executeQuery(String.format("select * from sp_rp_enum where egroup = '%s'", key));
+                    rs = statement.executeQuery(String.format("select * from s_enum where egroup = '%s'", key));
                     while (rs.next()){
                         HashMap<String, Object> rowEnum = new HashMap<>();
                         String ename = rs.getString("ename");
@@ -228,6 +219,7 @@ class attrMapper extends MapperBase{
         HashMap<String, String> calResult = new HashMap<>();
         // 提取并解析step，提取内容并且拼接成一个string
         String content = record.getString("title");
+        String title = record.getString("title");
         Long id = record.getBigint("id");
         String stepsString = record.getString("steps");
         Gson gson = new Gson();
@@ -267,13 +259,19 @@ class attrMapper extends MapperBase{
                         while(valuesInterator.hasNext()) {
                             JsonElement oneValue = (JsonElement)valuesInterator.next();
                             String synonyms = oneValue.getAsString();
-                            if (content.contains(synonyms)) {
+                            if (synonyms.length() > 1 && content.contains(synonyms)) {
+                                attrCalValue.add(oneAttrValue);
+                                break;
+                            }
+                            else if(synonyms.length() == 1 && title.contains(synonyms)){
                                 attrCalValue.add(oneAttrValue);
                                 break;
                             }
                         }
                     }
-                    calResult.put(columns, String.join(",",attrCalValue));
+                    if (!attrCalValue.isEmpty()) {
+                        calResult.put(columns, String.join(",", attrCalValue));
+                    }
                 }
                 else {
                     String attrOriValue = record.getString(columns);
@@ -286,7 +284,12 @@ class attrMapper extends MapperBase{
                         Iterator valueIterator = valueArray.iterator();
                         while (valueIterator.hasNext()){
                             JsonElement synonyms = (JsonElement)valueIterator.next();
-                            if (content.contains(synonyms.getAsString())){
+                            String synonyms_str = synonyms.getAsString();
+                            if (synonyms_str.length() > 1 && content.contains(synonyms_str)){
+                                calResult.put(columns, attr);
+                                break;
+                            }
+                            else if(synonyms_str.length() == 1 && title.contains(synonyms_str)){
                                 calResult.put(columns, attr);
                                 break;
                             }
@@ -324,14 +327,21 @@ class attrMapper extends MapperBase{
                         Iterator attrEnumItor = attrEnum.get("synonyms").getAsJsonArray().iterator();
                         while (attrEnumItor.hasNext()) {
                             JsonElement enumSy = (JsonElement) attrEnumItor.next();
-                            if (content.contains(enumSy.toString())) {
+                            String enumSy_str = enumSy.toString();
+                            if (enumSy_str.length() > 1 && content.contains(enumSy_str)) {
+                                matchResult.add(evalue.toString());
+                                break;
+                            }
+                            else if (enumSy_str.length() == 1 && title.contains(enumSy_str)) {
                                 matchResult.add(evalue.toString());
                                 break;
                             }
                         }
 
                     }
-                    calResult.put(columns, String.join(",", matchResult));
+                    if (!matchResult.isEmpty()) {
+                        calResult.put(columns, String.join(",", matchResult));
+                    }
                 }
                 else {
                     Double attrEvalueDouble = record.getDouble(columns);
@@ -349,7 +359,14 @@ class attrMapper extends MapperBase{
                         Iterator attrEnumItor = attrEnum.get("synonyms").getAsJsonArray().iterator();
                         while (attrEnumItor.hasNext()) {
                             JsonElement enumSy = (JsonElement) attrEnumItor.next();
-                            if (content.contains(enumSy.toString())) {
+                            String enumSy_str = enumSy.toString();
+                            if (enumSy_str.length() > 1 && content.contains(enumSy_str)) {
+                                Float matchEvalueFloat = values.getAsJsonObject().get("evalue").getAsFloat();
+                                matchEvalue = matchEvalueFloat.toString();
+                                calResult.put(columns, matchEvalue);
+                                break;
+                            }
+                            else if(enumSy_str.length() == 1 && title.contains(enumSy_str)){
                                 Float matchEvalueFloat = values.getAsJsonObject().get("evalue").getAsFloat();
                                 matchEvalue = matchEvalueFloat.toString();
                                 calResult.put(columns, matchEvalue);
