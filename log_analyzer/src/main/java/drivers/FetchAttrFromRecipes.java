@@ -39,7 +39,7 @@ public class FetchAttrFromRecipes {
 
             // 获取文章的字段描述
             StringLengthComparator stringLengthComparator = new StringLengthComparator();
-            PreparedStatement preStatement = conn.prepareStatement("select * from s_arc_type where typename = ?");
+            PreparedStatement preStatement = conn.prepareStatement("select * from sp_rp_arc_type where typename = ?");
             Statement statement = conn.createStatement();
             preStatement.setString(1, articleType);
             ResultSet rs = preStatement.executeQuery();
@@ -78,7 +78,7 @@ public class FetchAttrFromRecipes {
                 String type = (String) es.get("type");
                 ArrayList<String> values = new ArrayList<String>();
                 if(type.equals("select")){
-                    rs = statement.executeQuery(String.format("select * from s_attr where type = 0 and channel = 0 and name = '%s'", key));
+                    rs = statement.executeQuery(String.format("select * from sp_rp_attr where type = 0 and channel = 0 and name = '%s'", key));
                     Integer index_id = 0;
                     while (rs.next()){
                         values = new ArrayList<String>(Arrays.asList(rs.getString("value").split(",")));
@@ -91,7 +91,7 @@ public class FetchAttrFromRecipes {
                     rs.close();
                     // JsonElement synonyms = new JsonObject();
                     HashMap<String, ArrayList> synonyms = new HashMap<>();
-                    rs = statement.executeQuery(String.format("select * from s_attr_synonyms where type = 'attr' and index_id = %d", index_id));
+                    rs = statement.executeQuery(String.format("select * from sp_rp_attr_synonyms where type = 'attr' and index_id = %d", index_id));
                     while (rs.next()){
                         String attrName = rs.getString("attr_name");
                         if (values.contains(attrName)) {
@@ -113,7 +113,7 @@ public class FetchAttrFromRecipes {
                 }
                 else if(type.equals("enum")){
                     // 获取对用枚举的同义词记录
-                    rs = statement.executeQuery(String.format("select * from s_attr_synonyms where type ='enum' and index_id = (select id from s_enum_index where egroup = '%s')", key));
+                    rs = statement.executeQuery(String.format("select * from sp_rp_attr_synonyms where type ='enum' and index_id = (select id from sp_rp_enum_index where egroup = '%s')", key));
                     HashMap<String, ArrayList> synonyms = new HashMap<>();
                     while(rs.next()){
                         String attrName = rs.getString("attr_name");
@@ -125,7 +125,7 @@ public class FetchAttrFromRecipes {
                     }
                     // 获取对应枚举值
                     ArrayList<HashMap<String, Object>> attrEnum = new ArrayList<>();
-                    rs = statement.executeQuery(String.format("select * from s_enum where egroup = '%s'", key));
+                    rs = statement.executeQuery(String.format("select * from sp_rp_enum where egroup = '%s'", key));
                     while (rs.next()){
                         HashMap<String, Object> rowEnum = new HashMap<>();
                         String ename = rs.getString("ename");
