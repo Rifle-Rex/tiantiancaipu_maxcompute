@@ -9,20 +9,19 @@ import com.aliyun.odps.mapred.RunningJob;
 import com.aliyun.odps.mapred.conf.JobConf;
 import com.aliyun.odps.mapred.utils.InputUtils;
 import com.aliyun.odps.mapred.utils.OutputUtils;
+import com.aliyun.odps.mapred.utils.SchemaUtils;
 import com.google.gson.*;
+import com.huaban.analysis.jieba.*;
 
-import java.io.IOException;
 import java.io.BufferedInputStream;
 import java.io.FileNotFoundException;
-import java.math.BigDecimal;
-import java.util.Map.Entry;
+import java.io.IOException;
 import java.util.*;
 
-
-public class FetchAttrFromRecipes {
+public class FetchAttrFromRecipesWithJieba {
 
     public static void main(String[] args) throws OdpsException {
-        // args中，第一个参数是文章类型，第二个参数是pt分区
+// args中，第一个参数是文章类型，第二个参数是pt分区
 
         if(args[0] == null){
             return;
@@ -47,19 +46,19 @@ public class FetchAttrFromRecipes {
         OutputUtils.addTable(TableInfo.builder().tableName("dim_output_fetch_recipes_attr").partSpec(ptMap).build(), job);
 
         // TODO: specify a mapper
-        job.setMapperClass(attrMapper.class);
+        job.setMapperClass(attrWithJiebaMapper.class);
         // TODO: specify a reducer
         // job.setReducerClass( ?);
 
         RunningJob rj = JobClient.runJob(job);
         rj.waitForCompletion();
     }
-
 }
 
-class attrMapper extends MapperBase{
+class attrWithJiebaMapper extends MapperBase {
     public Record tableOutput;
     public JsonArray attr;
+    public JiebaSegmenter segmenter = new JiebaSegmenter();
 
     @Override
     public void setup(TaskContext context) throws IOException {
@@ -111,6 +110,16 @@ class attrMapper extends MapperBase{
                 content = content.concat(oneStep.get("content").getAsString());
             }
         }
+        List<SegToken> titleWordSegoken = this.segmenter.process(title, JiebaSegmenter.SegMode.INDEX);
+        List<SegToken> contentWordSegoken = this.segmenter.process(content, JiebaSegmenter.SegMode.INDEX);
+        List<String> titleWords = new ArrayList<>();
+        List<String> contentWords = new ArrayList<>();
+        for(SegToken segtoken : titleWordSegoken){
+            titleWords.add(segtoken.word);
+        }
+        for(SegToken segtoken : contentWordSegoken){
+            contentWords.add(segtoken.word);
+        }
         Iterator attrInterator = this.attr.iterator();
         // for(Entry<String,; JsonElement> oneAttr : this.attr.entrySet()){
         while (attrInterator.hasNext()){
@@ -123,7 +132,7 @@ class attrMapper extends MapperBase{
                 // 当前字段是否多选
                 if (multiSelect) {
                     ArrayList<String> attrCalValue = new ArrayList<>();
-                    for (Entry<String, JsonElement> value : values.entrySet()) {
+                    for (Map.Entry<String, JsonElement> value : values.entrySet()) {
                         String attrString = record.getString(columns);
                         if (null == attrString || attrString.isEmpty()) {
                             attrString = "";
@@ -139,11 +148,11 @@ class attrMapper extends MapperBase{
                         while(valuesInterator.hasNext()) {
                             JsonElement oneValue = (JsonElement)valuesInterator.next();
                             String synonyms = oneValue.getAsString();
-                            if (synonyms.length() > 1 && content.contains(synonyms)) {
+                            if (synonyms.length() > 1 && contentWords.contains(synonyms)) {
                                 attrCalValue.add(oneAttrValue);
                                 break;
                             }
-                            else if(synonyms.length() == 1 && title.contains(synonyms)){
+                            else if(synonyms.length() == 1 && titleWords.contains(synonyms)){
                                 attrCalValue.add(oneAttrValue);
                                 break;
                             }
@@ -158,18 +167,18 @@ class attrMapper extends MapperBase{
                     if (null != attrOriValue && !attrOriValue.isEmpty()){
                         continue;
                     }
-                    for(Entry<String, JsonElement> value : values.entrySet()){
+                    for(Map.Entry<String, JsonElement> value : values.entrySet()){
                         String attr = value.getKey();
                         JsonArray valueArray = value.getValue().getAsJsonArray();
                         Iterator valueIterator = valueArray.iterator();
                         while (valueIterator.hasNext()){
                             JsonElement synonyms = (JsonElement)valueIterator.next();
                             String synonyms_str = synonyms.getAsString();
-                            if (synonyms_str.length() > 1 && content.contains(synonyms_str)){
+                            if (synonyms_str.length() > 1 && contentWords.contains(synonyms_str)){
                                 calResult.put(columns, attr);
                                 break;
                             }
-                            else if(synonyms_str.length() == 1 && title.contains(synonyms_str)){
+                            else if(synonyms_str.length() == 1 && titleWords.contains(synonyms_str)){
                                 calResult.put(columns, attr);
                                 break;
                             }
@@ -208,11 +217,11 @@ class attrMapper extends MapperBase{
                         while (attrEnumItor.hasNext()) {
                             JsonElement enumSy = (JsonElement) attrEnumItor.next();
                             String enumSy_str = enumSy.getAsString();
-                            if (enumSy_str.length() > 1 && content.contains(enumSy_str)) {
+                            if (enumSy_str.length() > 1 && contentWords.contains(enumSy_str)) {
                                 matchResult.add(evalue.toString());
                                 break;
                             }
-                            else if (enumSy_str.length() == 1 && title.contains(enumSy_str)) {
+                            else if (enumSy_str.length() == 1 && titleWords.contains(enumSy_str)) {
                                 matchResult.add(evalue.toString());
                                 break;
                             }
@@ -241,13 +250,13 @@ class attrMapper extends MapperBase{
                         while (attrEnumItor.hasNext()) {
                             JsonElement enumSy = (JsonElement) attrEnumItor.next();
                             String enumSy_str = enumSy.getAsString();
-                            if (enumSy_str.length() > 1 && content.contains(enumSy_str)) {
+                            if (enumSy_str.length() > 1 && contentWords.contains(enumSy_str)) {
                                 Float matchEvalueFloat = attrEnum.getAsJsonObject().get("evalue").getAsFloat();
                                 matchEvalue = matchEvalueFloat.toString();
                                 calResult.put(columns, matchEvalue);
                                 break;
                             }
-                            else if(enumSy_str.length() == 1 && title.contains(enumSy_str)){
+                            else if(enumSy_str.length() == 1 && titleWords.contains(enumSy_str)){
                                 Float matchEvalueFloat = attrEnum.getAsJsonObject().get("evalue").getAsFloat();
                                 matchEvalue = matchEvalueFloat.toString();
                                 calResult.put(columns, matchEvalue);
@@ -279,44 +288,5 @@ class attrMapper extends MapperBase{
             }
         }
         return evalue;
-    }
-}
-
-/**
- * 字符串长度对比器
- */
-class StringLengthComparator implements Comparator<String> {
-    @Override
-    public int compare(String o1, String o2) {
-        if (o1.length() > o2.length()) {
-            return -1;
-        } else if (o1.length() == o2.length()) {
-            return 0;
-        } else {
-            return 1;
-        }
-    }
-}
-
-/**
- *  evalue值排序
- */
-class EvalueComparator implements Comparator<HashMap> {
-    @Override
-    public int compare(HashMap o1, HashMap o2) {
-        if (!o1.containsKey("evalue") || !o2.containsKey("evalue")){
-            return 0;
-        }
-        Float o1Evalue = (Float) o1.get("evalue");
-        Float o2Evalue = (Float) o2.get("evalue");
-        if (o1Evalue > o2Evalue){
-            return 1;
-        }
-        else if (o1Evalue == o2Evalue) {
-            return 0;
-        }
-        else {
-            return -1;
-        }
     }
 }
