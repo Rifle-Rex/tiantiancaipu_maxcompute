@@ -147,69 +147,30 @@ public class ConversationDivision extends ReducerBase {
                 e.printStackTrace();
                 throw new IOException("unknow object '"+logClassName+"'");
             }
-            if (result.size() == 0) {
-                result.add(cacheLog);
-            } else if (result.size() == 1) {//result长度为1时
-                Long sortkey = result.get(0).time;
-                Long thiskey = cacheLog.time;
-                if (sortkey < thiskey) {  //小->大(数值大的追加到后面)；
-                    result.add(cacheLog);
-                } else if (sortkey == thiskey &&
-                        result.get(0).row_number < cacheLog.row_number) {
-                    result.add(cacheLog);
-                } else {
-                    result.add(0, cacheLog);
-                }
-            } else {
-                Long sortkey = cacheLog.time;
-                Long insertindex = -1L;//log_time新插入的位置
-                for (int ri = 0; ri < result.size() - 1; ri++) {//拿第三个以后的val.get("log_time")和result中的元素比较大小
-                    Long thiskey = result.get(ri).time;
-                    Long nextkey = result.get(ri + 1).time;
-                    if (sortkey > thiskey) {
-                        if (sortkey < nextkey) {
-                            insertindex = ri + 1L;  //当某个log_time >= 前一个log_time 且< 后一个log_time[即将该log_time数值插入两者中间]
-                            break;
+            result.add(cacheLog);
+        }
+        result.sort(new Comparator<Log>() {
+            @Override
+            public int compare(Log o1, Log o2) {
+                // 根据时间排序
+                if (o1.time == o2.time){
+                    if (o1.getClass() == logObjects.WebLog.class){
+                        if (o2.getClass() == logObjects.JsTraceLog.class){
+                            return 1;
                         }
-                    } else if (sortkey == thiskey) {
-                        Long this_row_number = 0L;
-                        Long next_row_number = 0L;
-                        Log next_row;
-                        Long sort_row_number = cacheLog.row_number;
-                        // 当时间都在同一秒的时候，找出都在同一秒内请求范围
-                        for (int ris = ri; ris < result.size() - 1; ris++) {
-                            insertindex = Long.valueOf(ris);
-                            this_row_number = result.get(ris).row_number;
-                            next_row = result.get(ris + 1);
-                            if (sortkey == next_row.time) {
-                                next_row_number = next_row.row_number;
-                            } else {
-                                next_row_number = 0L;
-                            }
-                            if (this_row_number < sort_row_number) {
-                                if (sort_row_number < next_row_number || next_row_number == 0L) {
-                                    insertindex += 1L;
-                                    break;
-                                } else if (insertindex == result.size() - 2) {
-                                    insertindex = -1L;
-                                }
-                            } else {
-                                break;
-                            }
+                    }
+                    else{
+                        if (o1.row_number >= o2.row_number){
+                            return 1;
                         }
-                        break;
-                    } else if (ri == 0) {
-                        insertindex = 0L;
-                        break;
+                        else {
+                            return -1;
+                        }
                     }
                 }
-                if (insertindex == -1) {  //往result后面追加元素，即只符合 (sortkey >= thiskey)
-                    result.add(cacheLog);
-                } else {   //
-                    result.add(insertindex.intValue(), cacheLog);
-                }
+                return (int)(o1.time-o2.time);
             }
-        }
+        });
         return result;
     }
 
@@ -342,11 +303,12 @@ public class ConversationDivision extends ReducerBase {
                 }
             }
             // 如果是最后一个请求记录，则直接切分与分析
-            if (!convIter.hasNext()) {
+            if (!convIter.hasNext() && cacheLogs.size() > 0) {
                 allPathAnalyzeResults.add(ConversationDivision.PathAnalyze(cacheLogs));
                 allLogs.addAll(cacheLogs);
             }
         }
+        // 因赋值会破坏对象的引用，所以需要用对象本身的方法来修改。
         conversationLogs.clear();
         conversationLogs.addAll(allLogs);
         // 遍历所有路径分析结果，合并成会话里面部分字段的数据
@@ -403,8 +365,12 @@ public class ConversationDivision extends ReducerBase {
         int pcPlatformCount = 0;
         Long allViewTime = 0L;
         WebLog cacheWebLog;
-        // 遍历修复完之后的日志数组，提取会话需要的字段信息
-        for (Log log : conversationLogs) {
+        Log log;
+        Long cacheEndTime = 0L;
+        int conversationLogsSzie = conversationLogs.size();
+        // 反向遍历修复完之后的日志数组，提取会话需要的字段信息，并且数据缺失的请求通过上下文补充(例如结束时间)
+        for (int convIndex = conversationLogsSzie - 1; convIndex >= 0 ; convIndex--) {
+            log = conversationLogs.get(convIndex);
             log.conv_id = conv_id;
             if (conversation.user_id == 0L && log.user_id != 0L) {
                 conversation.user_id = log.user_id;
@@ -416,6 +382,8 @@ public class ConversationDivision extends ReducerBase {
             } else if (log.platform.equals("pc")) {
                 pcPlatformCount += 1;
             }
+
+            // 当前日志如果为
 
             if (log.getClass() == logObjects.WebLog.class) {
                 conversation.weblog_count += 1;
@@ -432,7 +400,20 @@ public class ConversationDivision extends ReducerBase {
                     conversation.first_path = log.path;
                 }
                 cacheWebLog = (WebLog) log;
-                allViewTime += cacheWebLog.viewTime;
+                if (conversation.conv_type != 0L){
+                    cacheWebLog.request_type = conversation.conv_type;
+                }
+                if (cacheEndTime == 0L){
+                    cacheEndTime = cacheWebLog.start_time;
+                }
+                else {
+                    if (cacheWebLog.start_time == cacheWebLog.end_time){
+                        cacheWebLog.end_time = cacheEndTime;
+                        cacheWebLog.view_time = cacheWebLog.end_time - cacheWebLog.start_time;
+                    }
+                    cacheEndTime = cacheWebLog.start_time;
+                }
+                allViewTime += cacheWebLog.view_time;
             }
         }
         if (pcPlatformCount > mobilePlatformCount) {
@@ -468,7 +449,7 @@ public class ConversationDivision extends ReducerBase {
         Long jsStartTime = 0L; // js事件记录的页面打开时间
         Long endTime = 0L;
         Long lostFocusCount = 0L; // 失去焦点计数
-        Long jsTraceCount = 0L;
+        Long jsTraceCount = 0L; // 除去打开页面与关闭页面之外的js计数
         String scrollTrace = ""; // 页面滚动数据，根据js逻辑，只有在失去焦点和关闭页面时发送，
         for (Log log : paths){
             // startTime为0时，以此判别是否为第一条数据
@@ -527,19 +508,26 @@ public class ConversationDivision extends ReducerBase {
 
         // 完善weblog记录
         if (endTime >= startTime) {
-            cacheWebLog.jsStartTime = jsStartTime;
-            cacheWebLog.startTime = startTime;
-            cacheWebLog.endTime = endTime;
-            if (cacheWebLog.jsStartTime > 0L) {
-                cacheWebLog.viewTime = endTime - jsStartTime;
+            cacheWebLog.js_start_time = jsStartTime;
+            cacheWebLog.start_time = startTime;
+            cacheWebLog.end_time = endTime;
+            if (cacheWebLog.js_start_time > 0L) {
+                cacheWebLog.view_time = endTime - jsStartTime;
             }
             else {
-                cacheWebLog.viewTime = endTime - startTime;
+                cacheWebLog.view_time = endTime - startTime;
             }
         }
         else {
-            System.out.println(startTime);
-            System.out.println(endTime);
+            System.out.println(paths.get(0).ttcp);
+            for (Log log : paths){
+                System.out.println(log.getClass().getName());
+                System.out.println(log.path);
+                if (log.getClass() == JsTraceLog.class){
+                    System.out.println(((JsTraceLog)log).event_id);
+                }
+                System.out.println(log.time);
+            }
             throw new IOException("endTime should not be bigger than startTime");
         }
         result.put("startTime", startTime);

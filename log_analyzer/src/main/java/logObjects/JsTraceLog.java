@@ -15,7 +15,7 @@ public class JsTraceLog extends Log {
     public String event_id;
     public String path_id = ""; // 用于记录当前事件与请求记录的关系
 
-    public static JsTraceLog createFromRecord(Class logClass , Record record) throws IllegalAccessException, InstantiationException, IgnoreRecordException {
+    public static JsTraceLog createFromRecord(Class logClass , Record record) throws IllegalAccessException, InstantiationException, IgnoreRecordException, IOException {
         JsTraceLog result = (JsTraceLog)Log.createFromRecord(logClass, record);
         String dataStr = "";
         // 处理path字段
@@ -34,7 +34,7 @@ public class JsTraceLog extends Log {
                 throw new IgnoreRecordException("host of js_trace log is illegal. host:" + domain);
             }
             // 提取data数据，提取eventid并且转换成HashMap格式
-            if (result.method == "POST"){
+            if (result.method.equals("POST")){
                 dataStr = record.getString("post_data");
             }
             else{
@@ -62,8 +62,15 @@ public class JsTraceLog extends Log {
         String name;
         Object value;
         for (Field field : allLogField){
-            value = field.get(this);
-            field.set(result, value);
+            name = field.getName();
+            try {
+                if (null != WebLog.class.getField(name)) {
+                    value = field.get(this);
+                    field.set(result, value);
+                }
+            } catch (NoSuchFieldException e) {
+                continue;
+            }
         }
         return result;
     }

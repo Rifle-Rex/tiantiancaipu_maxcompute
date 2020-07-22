@@ -39,7 +39,7 @@ public class Log implements Cloneable{
     public String platform;
     public Double request_time;
 
-    public static Log createFromRecord(Class logClass ,Record record) throws IllegalAccessException, InstantiationException, IgnoreRecordException {
+    public static Log createFromRecord(Class logClass ,Record record) throws IllegalAccessException, InstantiationException, IgnoreRecordException, IOException {
 
         Log result = (Log) logClass.newInstance();
         HashMap<String, Field> resultFields = new HashMap<>();
