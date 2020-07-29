@@ -8,4 +8,5 @@ public class WebLog extends Log {
     public Long view_time = 0L; // 浏览时长，由startTime和endTime相减算出
     public String path_id = ""; // 当前请求id
     public Long request_type = 0L; // 请求类型，以区分是否是普通用户、蜘蛛、异常请求
+    public Long bounced = 0L; // 是否跳出页面
 }

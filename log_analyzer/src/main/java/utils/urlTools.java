@@ -14,11 +14,9 @@ public class urlTools {
 
     static HashMap<String, Pattern> pathPatternAndTypeMap = new HashMap<String, Pattern>(){{
         this.put("index", Pattern.compile("^/\\??")); // 首页
-        this.put("article_list", Pattern.compile("^/articles(?:/list-\\d+\\.html|/?(?:\\??|$))")); // 文章列表
         this.put("article", Pattern.compile("^/articles/(?:info-)?(?<id>\\d+)\\.html")); // 文章内容页
         this.put("recipes", Pattern.compile("^/recipes/(?:info-)?(?<id>\\d+)\\.html")); // 文章内容页
-        this.put("topic", Pattern.compile("/(\\w+)/food-(?<id>\\d+)(?:-\\d+)?\\.html")); // 专题页面
-        this.put("topic_list", Pattern.compile("^/(?<type>\\w+)/?(\\??|$)")); // 专题列表页
+        this.put("topic", Pattern.compile("/(?<type>\\w+)/food-(?<id>\\d+)(?:-\\d+)?\\.html")); // 专题页面
     }};
 
     private static HashMap<String, ArrayList<String>>pathPatternGroupName = new HashMap<>();
@@ -27,7 +25,7 @@ public class urlTools {
         HashMap<String, String> result = new HashMap<>();
         if (urlTools.pathPatternGroupName.isEmpty()) {
             String value;
-            Pattern namePatter = Pattern.compile("\\?:<(\\w+)>");
+            Pattern namePatter = Pattern.compile("\\(\\?<(\\w+)>[^\\)]+\\)");
             for(String key : urlTools.pathPatternAndTypeMap.keySet()){
                 value = urlTools.pathPatternAndTypeMap.get(key).pattern();
                 Matcher matcher = namePatter.matcher(value);
@@ -40,7 +38,6 @@ public class urlTools {
         }
         Pattern cachePattern;
         Matcher cacheMatcher;
-        String pathType = "";
         ArrayList<String> pathGroups = new ArrayList<>();
         for(String type : urlTools.pathPatternAndTypeMap.keySet()){
             cachePattern = urlTools.pathPatternAndTypeMap.get(type);

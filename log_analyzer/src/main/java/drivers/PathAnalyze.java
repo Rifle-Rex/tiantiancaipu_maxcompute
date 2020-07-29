@@ -28,12 +28,14 @@ public class PathAnalyze {
         JobConf job = new JobConf();
 
         // TODO: specify map output types
-        job.setMapOutputKeySchema(SchemaUtils.fromString("string:pathType"));
-        job.setMapOutputValueSchema(SchemaUtils.fromString("string:pathParameter,string:conv_id,string:ttcp,bigint:time,string:refer,bigint:status,bigint:bytes,string:method,string:ua,string:platform,bigint:view_time"));
+        job.setMapOutputKeySchema(SchemaUtils.fromString("pathType:string,pathParameter:string"));
+        job.setMapOutputValueSchema(SchemaUtils.fromString("conv_id:string,ttcp:string,time:bigint,refer:string,status:bigint,bytes:bigint,method:string,ua:string,platform:string,view_time:bigint,bounced:bigint,request_type:bigint"));
 
         // TODO: specify input and output tables
         InputUtils.addTable(TableInfo.builder().tableName("d_weblog").partSpec(inputPt).build(), job);
-        // OutputUtils.addTable(TableInfo.builder().tableName("").partSpec(inputPt).build(), job);
+        OutputUtils.addTable(TableInfo.builder().tableName("d_page_article_statistic").partSpec(inputPt).label("article").build(), job);
+        OutputUtils.addTable(TableInfo.builder().tableName("d_page_topic_statistic").partSpec(inputPt).label("topic").build(), job);
+        OutputUtils.addTable(TableInfo.builder().tableName("d_page_index_statistic").partSpec(inputPt).label("index").build(), job);
 
         // TODO: specify a mapper
         job.setMapperClass(PathCategorize.class);

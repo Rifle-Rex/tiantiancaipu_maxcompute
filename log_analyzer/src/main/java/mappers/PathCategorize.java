@@ -16,8 +16,8 @@ public class PathCategorize extends MapperBase {
 
     @Override
     public void setup(TaskContext context) throws IOException {
-        this.outputKeyRecord = context.createOutputKeyRecord();
-        this.outputRecord = context.createOutputRecord();
+        this.outputKeyRecord = context.createMapOutputKeyRecord();
+        this.outputRecord = context.createMapOutputValueRecord();
     }
 
     @Override
@@ -34,7 +34,7 @@ public class PathCategorize extends MapperBase {
             return;
         }
         this.outputKeyRecord.setString("pathType", pathType);
-        this.outputRecord.setString("pathParameter", pathParameter);
+        this.outputKeyRecord.setString("pathParameter", pathParameter);
         this.outputRecord.setString("conv_id", record.getString("conv_id"));
         this.outputRecord.setString("ttcp", record.getString("ttcp"));
         this.outputRecord.setString("refer", record.getString("refer"));
@@ -45,6 +45,8 @@ public class PathCategorize extends MapperBase {
         this.outputRecord.setBigint("status", record.getBigint("status"));
         this.outputRecord.setBigint("bytes", record.getBigint("bytes"));
         this.outputRecord.setBigint("view_time", record.getBigint("view_time"));
+        this.outputRecord.setBigint("bounced", record.getBigint("bounced"));
+        this.outputRecord.setBigint("request_type", record.getBigint("request_type"));
         context.write(this.outputKeyRecord, this.outputRecord);
     }
 

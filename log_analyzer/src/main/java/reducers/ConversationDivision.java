@@ -367,6 +367,7 @@ public class ConversationDivision extends ReducerBase {
         WebLog cacheWebLog;
         Log log;
         Long cacheEndTime = 0L;
+        Boolean isTheLastWebLog = true;
         int conversationLogsSzie = conversationLogs.size();
         // 反向遍历修复完之后的日志数组，提取会话需要的字段信息，并且数据缺失的请求通过上下文补充(例如结束时间)
         for (int convIndex = conversationLogsSzie - 1; convIndex >= 0 ; convIndex--) {
@@ -400,6 +401,10 @@ public class ConversationDivision extends ReducerBase {
                     conversation.first_path = log.path;
                 }
                 cacheWebLog = (WebLog) log;
+                if (isTheLastWebLog){
+                    isTheLastWebLog = false;
+                    cacheWebLog.bounced = 1L;
+                }
                 if (conversation.conv_type != 0L){
                     cacheWebLog.request_type = conversation.conv_type;
                 }
@@ -498,6 +503,8 @@ public class ConversationDivision extends ReducerBase {
                 else {
                     cacheWebLog = ((JsTraceLog)(paths.get(0))).toWebLog();
                 }
+                cacheWebLog.refer = "-"; // 因js数据的refer是当前页面地址，不能单座weblog的refer使用，故置空
+                cacheWebLog.path_id = pathId;
                 cacheWebLog.is_repair = 1L;
             }
             catch (IllegalAccessException e){
