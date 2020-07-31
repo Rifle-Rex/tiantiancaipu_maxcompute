@@ -13,7 +13,7 @@ import java.net.URLDecoder;
 public class urlTools {
 
     static HashMap<String, Pattern> pathPatternAndTypeMap = new HashMap<String, Pattern>(){{
-        this.put("index", Pattern.compile("^/\\??")); // 首页
+        this.put("index", Pattern.compile("^/(\\??|$)")); // 首页
         this.put("article", Pattern.compile("^/articles/(?:info-)?(?<id>\\d+)\\.html")); // 文章内容页
         this.put("recipes", Pattern.compile("^/recipes/(?:info-)?(?<id>\\d+)\\.html")); // 文章内容页
         this.put("topic", Pattern.compile("/(?<type>\\w+)/food-(?<id>\\d+)(?:-\\d+)?\\.html")); // 专题页面
@@ -42,7 +42,7 @@ public class urlTools {
         for(String type : urlTools.pathPatternAndTypeMap.keySet()){
             cachePattern = urlTools.pathPatternAndTypeMap.get(type);
             cacheMatcher = cachePattern.matcher(path);
-            if (cacheMatcher.find()){
+            if (cacheMatcher.matches()){
                 result.put("type", type);
                 if (!urlTools.pathPatternGroupName.containsKey(type)){
                     throw new IgnoreRecordException("unkonw path type");
@@ -50,7 +50,7 @@ public class urlTools {
                 for (String groupName: urlTools.pathPatternGroupName.get(type)){
                     pathGroups.add(groupName + "=" + cacheMatcher.group(groupName));
                 }
-                result.put("parameter", String.join(",", pathGroups));
+                result.put("parameter", String.join("&", pathGroups));
                 break;
             }
         }

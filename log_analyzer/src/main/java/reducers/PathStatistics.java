@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 
 import com.aliyun.odps.data.Record;
@@ -31,7 +32,7 @@ public class PathStatistics extends ReducerBase {
         PageStatistic cachePageStatistic = null;
         pcPageStatistic.platform = "pc";
         mobilePageStatistic.platform = "mobile";
-        ArrayList<String> ttcp_list = new ArrayList<>();
+        HashSet<String> ttcp_list = new HashSet<>();
         String pathType = key.getString("pathType");
         String pathParameter = key.getString("pathParameter");
         HashMap<String, String> pathParametersHashMap = urlTools.convertHTTPQueryToHashMap(pathParameter);
@@ -46,7 +47,7 @@ public class PathStatistics extends ReducerBase {
             case "topic":
                 pathCategory = "topic";
                 outputRecord = this.topicRecord;
-                outputRecord.set("topic_type", pathParametersHashMap.get("type"));
+                outputRecord.set("type", pathParametersHashMap.get("type"));
                 outputRecord.set("id", pathParametersHashMap.get("id"));
                 break;
             case "articles":

@@ -38,9 +38,6 @@ public class PageStatistic {
         Long bounced = record.getBigint("bounced");
         String referer;
         String ua = record.getString("ua").toLowerCase();
-        if (bounced == 1L){
-            this. bounced_count++;
-        }
         this.view_time += record.getBigint("view_time");
         if (record.getBigint("request_type") == 1L){
             if (status>399L){
@@ -66,7 +63,6 @@ public class PageStatistic {
                 }
             }
             else {
-                this.pv++;
                 this.spider_crawl_count++;
                 if (ua.contains("baidu")){
                     this.baidu_spider_crawl_count++;
@@ -93,6 +89,9 @@ public class PageStatistic {
                 this.error++;
             }
             else {
+                if (bounced == 1L){
+                    this. bounced_count++;
+                }
                 this.pv++;
                 this.view_time += record.getBigint("view_time");
                 this.bounced_count += record.getBigint("bounced");
