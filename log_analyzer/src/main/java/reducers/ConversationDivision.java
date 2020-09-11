@@ -91,8 +91,13 @@ public class ConversationDivision extends ReducerBase {
          */
         ArrayList<Conversation> allConversations = new ArrayList<>();
         String className = "";
+        Conversation cacheConversationsLogs;
         for (ArrayList<Log> conversationLogs : conversationsLogs) {
-            allConversations.add(ConversationDivision.AnalyzeConversation(conversationLogs));
+            cacheConversationsLogs = ConversationDivision.AnalyzeConversation(conversationLogs);
+            if (null == cacheConversationsLogs) {
+                continue;
+            }
+            allConversations.add(cacheConversationsLogs);
             for(Log log : conversationLogs){
                 className = log.getClass().getName();
                 if (className.contains("WebLog")){
@@ -109,7 +114,7 @@ public class ConversationDivision extends ReducerBase {
             }
         }
         for (Conversation conversation:allConversations){
-
+            conversation.ttcp = ttcp;
             conversation.assignmentRecord(this.outputRecords.get("conversation"));
             context.write(this.outputRecords.get("conversation"), "conversation");
 
@@ -248,13 +253,19 @@ public class ConversationDivision extends ReducerBase {
                 }
             } else {
                 if (!rowLog.path.equals(cachePath)) {
-                    // 切分分组，并把当前log写入新分组
-                    allPathAnalyzeResults.add(ConversationDivision.PathAnalyze(cacheLogs));
-                    allLogs.addAll(cacheLogs);
-                    cacheLogs.clear();
-                    cacheLogs.add(rowLog);
-                    cachePath = rowLog.path;
-                    cacheHasJsOpenLog = cacheHasWebLog = false;
+                    // 判断分组中是否存在weblog记录或者打开页面的js事件记录，因用户有可能在不同页面中跳来跳去，而同一个页面的js事件不一定是连续的。若分组中不存在open事件，则说明页面是被跳回来的，暂时不参与运算。
+                    if (!cacheHasJsOpenLog && !cacheHasWebLog){
+                        cacheLogs.clear();
+                    }
+                    else {
+                        // 切分分组，并把当前log写入新分组
+                        allPathAnalyzeResults.add(ConversationDivision.PathAnalyze(cacheLogs));
+                        allLogs.addAll(cacheLogs);
+                        cacheLogs.clear();
+                        cacheLogs.add(rowLog);
+                        cachePath = rowLog.path;
+                        cacheHasJsOpenLog = cacheHasWebLog = false;
+                    }
                 } else {
                     if (rowLog.getClass() == logObjects.WebLog.class) {
                         //
@@ -311,6 +322,9 @@ public class ConversationDivision extends ReducerBase {
         // 因赋值会破坏对象的引用，所以需要用对象本身的方法来修改。
         conversationLogs.clear();
         conversationLogs.addAll(allLogs);
+        if (conversationLogs.size() == 0){
+            return null;
+        }
         // 遍历所有路径分析结果，合并成会话里面部分字段的数据
         for (HashMap<String, Object> pathAnalyzeResult : allPathAnalyzeResults) {
             for (String key : pathAnalyzeResult.keySet()) {
@@ -363,16 +377,19 @@ public class ConversationDivision extends ReducerBase {
         conversation.last_path = conversationLogs.get(conversationLogs.size()-1).path;
         int mobilePlatformCount = 0;
         int pcPlatformCount = 0;
+        String hm_ttcp = "";
         Long allViewTime = 0L;
-        WebLog cacheWebLog;
+        WebLog cacheWebLog = null;
         Log log;
         Long cacheEndTime = 0L;
-        Boolean isTheLastWebLog = true;
         int conversationLogsSzie = conversationLogs.size();
         // 反向遍历修复完之后的日志数组，提取会话需要的字段信息，并且数据缺失的请求通过上下文补充(例如结束时间)
         for (int convIndex = conversationLogsSzie - 1; convIndex >= 0 ; convIndex--) {
             log = conversationLogs.get(convIndex);
             log.conv_id = conv_id;
+            if (hm_ttcp.isEmpty() && !log.hm_ttcp.isEmpty()){
+                hm_ttcp = log.hm_ttcp;
+            }
             if (conversation.user_id == 0L && log.user_id != 0L) {
                 conversation.user_id = log.user_id;
             }
@@ -401,10 +418,6 @@ public class ConversationDivision extends ReducerBase {
                     conversation.first_path = log.path;
                 }
                 cacheWebLog = (WebLog) log;
-                if (isTheLastWebLog){
-                    isTheLastWebLog = false;
-                    cacheWebLog.bounced = 1L;
-                }
                 if (conversation.conv_type != 0L){
                     cacheWebLog.request_type = conversation.conv_type;
                 }
@@ -421,6 +434,9 @@ public class ConversationDivision extends ReducerBase {
                 allViewTime += cacheWebLog.view_time;
             }
         }
+        if (null != cacheWebLog && conversation.weblog_count == 1L){
+            cacheWebLog.bounced = 1L;
+        }
         if (pcPlatformCount > mobilePlatformCount) {
             conversation.platform = "pc";
         } else {
@@ -429,6 +445,7 @@ public class ConversationDivision extends ReducerBase {
         if (allViewTime > 0 && conversation.pv > 0){
             conversation.avg_time_on_page = (1.0 * allViewTime / conversation.pv);
         }
+        conversation.hm_ttcp = hm_ttcp;
         return conversation;
     }
 

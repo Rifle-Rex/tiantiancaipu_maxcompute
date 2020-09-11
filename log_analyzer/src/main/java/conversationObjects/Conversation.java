@@ -7,6 +7,8 @@ import java.lang.reflect.Field;
 
 public class Conversation {
     public String conv_id;
+    public String ttcp;
+    public String hm_ttcp;
     public Long request_count = 0L; // 请求计数
     public Long weblog_count = 0L; // 日志计数
     public Long js_trace_count = 0L; // js事件计数

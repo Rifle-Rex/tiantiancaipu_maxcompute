@@ -16,6 +16,7 @@ public class urlTools {
         this.put("index", Pattern.compile("^/(\\??|$)")); // 首页
         this.put("article", Pattern.compile("^/articles/(?:info-)?(?<id>\\d+)\\.html")); // 文章内容页
         this.put("recipes", Pattern.compile("^/recipes/(?:info-)?(?<id>\\d+)\\.html")); // 文章内容页
+        this.put("formula", Pattern.compile("/formula/(?<id>\\d+)\\.html"));
         this.put("topic", Pattern.compile("/(?<type>\\w+)/food-(?<id>\\d+)(?:-\\d+)?\\.html")); // 专题页面
     }};
 

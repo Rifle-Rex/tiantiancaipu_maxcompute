@@ -94,7 +94,6 @@ public class PageStatistic {
                 }
                 this.pv++;
                 this.view_time += record.getBigint("view_time");
-                this.bounced_count += record.getBigint("bounced");
                 referer = record.getString("refer");
                 if (referer.equals("-")){
                     this.click_from_nowhere++;
@@ -111,7 +110,7 @@ public class PageStatistic {
                 else if (referer.contains("sogou")){
                     this.click_from_sogou++;
                 }
-                else if (referer.contains("tianitancaipu")){
+                else if (referer.contains("tiantiancaipu")){
                     this.click_from_self++;
                 }
                 else if (referer.contains("sm.cn")){

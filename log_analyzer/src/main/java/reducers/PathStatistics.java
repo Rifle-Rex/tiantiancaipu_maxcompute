@@ -9,6 +9,8 @@ import java.util.Iterator;
 
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.mapred.ReducerBase;
+import customerException.IgnoreRecordException;
+import jdk.nashorn.internal.ir.annotations.Ignore;
 import patObjects.PageStatistic;
 import utils.urlTools;
 
@@ -52,13 +54,15 @@ public class PathStatistics extends ReducerBase {
                 break;
             case "articles":
             case "recipes":
+            case "formula":
                 pathCategory = "article";
                 outputRecord = this.articleRecord;
                 outputRecord.set("type", pathType);
                 outputRecord.set("id", pathParametersHashMap.get("id"));
                 break;
             default:
-                throw new IOException("unknow pathType");
+                // throw new IOException("unknow pathType");
+                return;
         }
 
         while (values.hasNext()) {
@@ -74,7 +78,7 @@ public class PathStatistics extends ReducerBase {
                     throw new IOException("unknow platform");
             }
             cachePageStatistic.statistic(value);
-            if (!ttcp_list.contains(value.getString("ttcp"))){
+            if (value.getBigint("request_type") == 0L && !ttcp_list.contains(value.getString("ttcp"))){
                 ttcp_list.add(value.getString("ttcp"));
                 cachePageStatistic.uv += 1;
             }

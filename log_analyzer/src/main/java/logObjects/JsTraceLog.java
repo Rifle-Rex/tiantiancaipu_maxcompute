@@ -21,7 +21,13 @@ public class JsTraceLog extends Log {
         // 处理path字段
         try {
             // 因为js_trace的请求页面路径是通过refer来记录的，本身的path除了获取参数外并没有太多意义，为了和weblog统一统计口径，从refer中提取path并且根据域名补充platform字段
-            URL url = new URL(result.refer);
+            URL url;
+            try {
+                url = new URL(result.refer);
+            }
+            catch(Exception e){
+                throw new IgnoreRecordException("refer is illegal");
+            }
             result.path = url.getFile();
             String domain = url.getHost();
             if (domain.equals("m.tiantiancaipu.com")){
