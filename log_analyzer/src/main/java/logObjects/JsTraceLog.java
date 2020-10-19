@@ -14,6 +14,8 @@ public class JsTraceLog extends Log {
     public HashMap<String, String> data = null;
     public String event_id;
     public String path_id = ""; // 用于记录当前事件与请求记录的关系
+    public Long js_ttl = null;
+    public String js_h = "";
 
     public static JsTraceLog createFromRecord(Class logClass , Record record) throws IllegalAccessException, InstantiationException, IgnoreRecordException, IOException {
         JsTraceLog result = (JsTraceLog)Log.createFromRecord(logClass, record);
@@ -55,6 +57,19 @@ public class JsTraceLog extends Log {
             }
             result.event_id = result.data.get("event_id");
             result.data.remove("event_id");
+            result.js_h = result.data.get("js_h");
+            try {
+                result.ttl = Long.parseLong(result.data.get("ttl"));
+                result.js_ttl = Long.parseLong(result.data.get("js_ttl"));
+                result.data.remove("ttl");
+                result.data.remove("js_ttl");
+                result.data.remove("js_h");
+            }
+            catch (Exception e){ ;
+                // throw new IOException("ttl or js_ttl should be number.");
+                throw new IgnoreRecordException("js log record without ttl or js_ttl is ignore.");
+
+            }
             return result;
         } catch (MalformedURLException e) {
             e.printStackTrace();
@@ -77,6 +92,10 @@ public class JsTraceLog extends Log {
             } catch (NoSuchFieldException e) {
                 continue;
             }
+        }
+        // 如果当前对象的event_id为0，则data中有可能有refer信息，需要单独补全
+        if (this.event_id.equals("0") && this.data.containsKey("referer")){
+            result.refer = this.data.get("referer");
         }
         return result;
     }

@@ -24,6 +24,7 @@ public class Log implements Cloneable{
     public String conv_id;  // 区分会话用
     public String ttcp = "";
     public String hm_ttcp = "";
+    public Long ttl = null;
     public Long user_id = 0L;
     public String ip = "";
     public String proxy_ip = "";
@@ -103,6 +104,14 @@ public class Log implements Cloneable{
                 }
                 catch(Exception e){
                     result.user_id = 0L;
+                }
+            }
+            if (cookies.containsKey("_ttcp_ttl")){
+                try{
+                    result.ttl =  Long.parseLong(cookies.get("_ttcp_ttl"));
+                }
+                catch(Exception e){
+                    throw new IOException("_ttcp_ttl should be a number" + cookies.get("_ttcp_ttl"));
                 }
             }
         }

@@ -19,7 +19,7 @@ public class Conversation {
     public Long pv = 0L; // page views
     public Long user_id=0L; // 用户id
     public Double avg_time_on_page = 0.0; // 平均页面停留时间
-    public String referer = ""; // 回来来源，获取自第一个请求的referer
+    public String referer = ""; // 会话来源，获取自第一个请求的referer
     public String first_path = ""; // 会话第一个路径
     public String last_path = ""; // 会话最后一个路径
     public Long lost_focus_count = 0L;

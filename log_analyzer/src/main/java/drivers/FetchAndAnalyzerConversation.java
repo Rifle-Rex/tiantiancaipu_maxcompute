@@ -10,7 +10,8 @@ import com.aliyun.odps.mapred.utils.OutputUtils;
 import com.aliyun.odps.mapred.utils.SchemaUtils;
 
 import mappers.ClearAndSortWebLog;
-import reducers.ConversationDivision;
+// import reducers.ConversationDivision;
+import reducers.LogsToConversaton;
 
 import java.util.LinkedHashMap;
 
@@ -43,7 +44,7 @@ public class FetchAndAnalyzerConversation {
         // TODO: specify a mapper
         job.setMapperClass(ClearAndSortWebLog.class);
         // TODO: specify a reducer
-        job.setReducerClass(ConversationDivision.class);
+        job.setReducerClass(LogsToConversaton.class);
 
         RunningJob rj = JobClient.runJob(job);
         rj.waitForCompletion();

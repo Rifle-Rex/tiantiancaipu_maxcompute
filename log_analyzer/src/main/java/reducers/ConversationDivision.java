@@ -16,6 +16,9 @@ import conversationObjects.Conversation;
 import logObjects.*;
 import java.net.URLDecoder;
 
+/**
+ * 老的conversation分析reducer，已遗弃
+ */
 public class ConversationDivision extends ReducerBase {
 
     HashMap<String, Record> outputRecords = new HashMap<>();
