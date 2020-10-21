@@ -85,6 +85,11 @@ public class RequestUnion{
                 ArrayList<JsTraceLog> thisJsTraceLogArrayList = allGroupJsTraceLogArrayList.get(i);
                 JsTraceLog firstJsTraceLog = thisJsTraceLogArrayList.get(0);
                 if (weblog.ttl == firstJsTraceLog.ttl){
+                    // 判定页面js事件是否使用本地页面缓存，是则跳过，因为缓存不会产生服务器日志
+                    if (firstJsTraceLog.event_id.equals("0") && firstJsTraceLog.data.containsKey("useCache")
+                        && firstJsTraceLog.data.get("useCache").equals("1")){
+                        continue;
+                    }
                     result.add(new RequestUnion(weblog, thisJsTraceLogArrayList));
                     hadMatch = true;
                     break;
